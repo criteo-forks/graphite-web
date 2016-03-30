@@ -1359,7 +1359,8 @@ def aliasByNode(requestContext, seriesList, *nodes):
   if isinstance(nodes, int):
     nodes=[nodes]
   for series in seriesList:
-    metric_pieces = re.search('(?:.*\()?(?P<name>[-\w*\.]+)(?:,|\)?.*)?',series.name).groups()[0].split('.')
+    # fetch inner expression containing metric name, stop at first pattern then split on dot character
+    metric_pieces = re.search('^(?:\w+\()*([^\s,)]+)',series.name).groups()[0].split('.')
     series.name = '.'.join(metric_pieces[n] for n in nodes)
   return seriesList
 
