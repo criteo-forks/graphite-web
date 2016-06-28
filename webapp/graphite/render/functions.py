@@ -959,9 +959,14 @@ def movingAverage(requestContext, seriesList, windowSize):
     newSeries.pathExpression = newName
 
     offset = len(bootstrap) - len(series)
+    window_sum = safeSum(bootstrap[offset - windowPoints:offset])
     for i in range(len(series)):
-      window = bootstrap[i + offset - windowPoints:i + offset]
-      newSeries.append(safeAvg(window))
+      cursor = i - 1 + offset
+      if (cursor - windowPoints) >= 0 and bootstrap[cursor - windowPoints] is not None:
+        window_sum -= bootstrap[cursor - windowPoints]
+      if bootstrap[cursor] is not None:
+        window_sum += bootstrap[cursor]
+      newSeries.append(safeDiv(window_sum, windowPoints))
 
     result.append(newSeries)
 
