@@ -403,6 +403,30 @@ class FunctionsTest(TestCase):
             result = functions.changed({}, series)
             self.assertEqual(result, expected)
 
+    def test_movingAverage(self):
+        original = functions.evaluateTarget
+        try:
+            config = [
+                [[1,1,1,1,2,2,2,2,3], [0.0, 0.3333333333333333, 0.6666666666666666, 1.0, 1.0, 1.3333333333333333, 1.6666666666666667, 2.0, 2.0]]
+                ]
+            for i, c in enumerate(config):
+                name = "moving.average.test{0}".format(i + 1)
+
+                savedSeries = TimeSeries(name, 0,1 ,1, [0] * 3),
+                functions.evaluateTarget = lambda x, y: savedSeries
+                series = [TimeSeries(name, 0, 1, 1, c[0])]
+                for serie in series:
+                  serie.pathExpression = "tempPath"
+                expected = [TimeSeries("movingAverage(%s,3)" % name, 0, 1, 1, c[1])]
+                context = {
+                    'startTime': datetime(1970, 1, 1, 0, 9, 0, 0, pytz.timezone(settings.TIME_ZONE)),
+                    'endTime': datetime(1970, 1, 1, 0, 9, 0, 8, pytz.timezone(settings.TIME_ZONE))
+                    }
+                result = functions.movingAverage(context, series, 3)
+                self.assertEqual(result, expected)
+        finally:
+          functions.evaluateTarget = original
+
     def test_multiplySeriesWithWildcards(self):
         seriesList1 = [
             TimeSeries('web.host-1.avg-response.value',0,1,1,[1,10,11]),
