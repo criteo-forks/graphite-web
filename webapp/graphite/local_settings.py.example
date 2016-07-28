@@ -243,6 +243,11 @@
 # Try to detect when a cluster server is localhost and don't forward queries
 #REMOTE_EXCLUDE_LOCAL = False
 
+# Try to fetch data from all replicas and merge it locally. To be used
+# when with whisper and multiple replicas if your system takes a long time
+# to re-synchronize.
+# REMOTE_FETCH_FROM_ALL = False
+
 # Number of retries for a specific remote data fetch.
 #MAX_FETCH_RETRIES = 2
 

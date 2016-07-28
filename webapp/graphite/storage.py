@@ -80,6 +80,14 @@ class Store:
       if not leaf_nodes:
         continue
 
+      # If REMOTE_FETCH_FROM_ALL is True we will fetch from every
+      # replicas and merge locally. It is necessary in some cases because
+      # the whisper reader doesn't return a proper set of intervals.
+      if settings.REMOTE_FETCH_FROM_ALL:
+        reader = MultiReader(leaf_nodes)
+        yield LeafNode(path, reader)
+        continue
+
       # Calculate best minimal node set
       minimal_node_set = set()
       covered_intervals = IntervalSet([])
