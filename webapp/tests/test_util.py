@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 
 from django.conf import settings
 from graphite import util
+from graphite import user_util
 from graphite.wsgi import application  # NOQA makes sure we have a working WSGI app
 
 
@@ -19,14 +20,14 @@ class UtilTest(TestCase):
     def test_getProfile(self):
         request = HttpRequest()
         request.user = User.objects.create_user('testuser', 'testuser@test.com', 'testuserpassword')
-        self.assertEqual( str(util.getProfile(request, False)), 'Profile for testuser' )
+        self.assertEqual( str(user_util.getProfile(request, False)), 'Profile for testuser' )
 
     def test_getProfileByUsername(self):
         request = HttpRequest()
         request.user = User.objects.create_user('testuser', 'testuser@test.com', 'testuserpassword')
-        util.getProfile(request, False)
-        self.assertEqual( str(util.getProfileByUsername('testuser')), 'Profile for testuser' )
-        self.assertEqual( util.getProfileByUsername('nonexistentuser'), None )
+        user_util.getProfile(request, False)
+        self.assertEqual( str(user_util.getProfileByUsername('testuser')), 'Profile for testuser' )
+        self.assertEqual( user_util.getProfileByUsername('nonexistentuser'), None )
 
     def test_is_local_interface_ipv4(self):
         addresses = ['127.0.0.1', '127.0.0.1:8080', '8.8.8.8']
