@@ -53,7 +53,7 @@ class Store:
       yield match
 
     if matched_leafs > warn_threshold:
-      log.rendering("Query %s yields large number of results up to %d (warning threshold is %d)" % (pattern, matched_leafs, warn_threshold))
+      log.warning("Query %s yields large number of results up to %d (warning threshold is %d)" % (pattern, matched_leafs, warn_threshold))
 
 
   def find_all(self, query, headers=None):
