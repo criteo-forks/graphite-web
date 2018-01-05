@@ -62,6 +62,7 @@ USE_WORKER_POOL = True
 POOL_MAX_WORKERS = 10
 
 # This settings control whether https is used to communicate between cluster members
+# The timeouts also apply to all finder/readers.
 INTRACLUSTER_HTTPS = False
 REMOTE_FIND_TIMEOUT = 3.0
 REMOTE_FETCH_TIMEOUT = 3.0
@@ -71,6 +72,8 @@ REMOTE_STORE_MERGE_RESULTS = True
 REMOTE_STORE_FORWARD_HEADERS = []
 REMOTE_STORE_USE_POST = False
 REMOTE_BUFFER_SIZE = 1024 * 1024
+
+# Carbonlink settings
 CARBON_METRIC_PREFIX='carbon'
 CARBONLINK_HOSTS = ["127.0.0.1:7002"]
 CARBONLINK_TIMEOUT = 1.0
@@ -78,6 +81,8 @@ CARBONLINK_HASHING_KEYFUNC = None
 CARBONLINK_HASHING_TYPE = 'carbon_ch'
 CARBONLINK_RETRY_DELAY = 15
 REPLICATION_FACTOR = 1
+
+# Cache settings.
 MEMCACHE_HOSTS = []
 MEMCACHE_KEY_PREFIX = ''
 MEMCACHE_OPTIONS = {}
@@ -205,6 +210,7 @@ except ImportError:
 ## Load Django settings if they werent picked up in local_settings
 if not GRAPHITE_WEB_APP_SETTINGS_LOADED:
   from graphite.app_settings import *  # noqa
+
 
 STATICFILES_DIRS = (
     join(WEBAPP_DIR, 'content'),
