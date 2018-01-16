@@ -52,6 +52,8 @@ def get_finders(finder_path):
 
 
 def get_tagdb(tagdb_path):
+    if not tagdb_path:
+        return None
     module_name, class_name = tagdb_path.rsplit('.', 1)
     module = import_module(module_name)
     return getattr(module, class_name)(settings, cache=cache, log=log)
@@ -67,7 +69,7 @@ class Store(object):
         self.finders = finders
 
         if tagdb is None:
-            tagdb = get_tagdb(settings.TAGDB or 'graphite.tags.localdatabase.LocalDatabaseTagDB')
+            tagdb = get_tagdb(settings.TAGDB)
         self.tagdb = tagdb
 
     def get_finders(self, local=False):
