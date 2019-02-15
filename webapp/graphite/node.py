@@ -18,7 +18,7 @@ class BranchNode(Node):
 
 
 class LeafNode(Node):
-  __slots__ = ('reader', 'intervals')
+  __slots__ = ('reader', )
 
   def __init__(self, path, reader):
     Node.__init__(self, path)
@@ -29,6 +29,7 @@ class LeafNode(Node):
     try:
       result = self.reader.fetch(startTime, endTime, now, requestContext)
     except TypeError:
+      # Support for legacy 3rd party, readers.
       result = self.reader.fetch(startTime, endTime)
 
     return result

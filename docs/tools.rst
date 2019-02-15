@@ -69,6 +69,8 @@ Collection
 `SSC Serv`_
   A Windows service (agent) which periodically publishes system metrics, for example CPU, memory and disk usage. It can store data in Graphite using a naming schema that's identical to that used by collectd.
 
+`telegraf`_
+  Telegraf is an agent written in Go for collecting, processing, aggregating, and writing metrics. It also supports metric output to Graphite.
 
 Forwarding
 ----------
@@ -237,9 +239,21 @@ Monitoring
 `Shinken`_
   A system monitoring solution compatible with Nagios which emphasizes scalability, flexibility, and ease of setup. Shinken provides complete integration with Graphite for processing and display of performance data.
 
+`Skyline`_
+  An anomaly detection/deflection system that receives all Graphite metrics data in real time via a carbon-relay pickle and analyses each time series to detect anomalies, drops off cliffs, user defined thresholds, handles multiple seasonality, records all anomalies and cross correlates all metrics to anomalies for the purpose of root cause analysis.  Skyline can also be trained on what is not anomalous and thereafter it can independently learn what is not anomalous using a time series similarities comparison method.  It can alert via smtp, hipchat and pagerduty.
+
 Storage Backend Alternates
 --------------------------
 If you wish to use a backend to graphite other than Whisper, there are some options available to you.
+
+`BigGraphite`_
+  A time-series database written in Python on top of Cassandra. It integrates with Graphite as a plugin.
+
+`carbon-clickhouse`_
+  Graphite metrics receiver with `ClickHouse`_ as storage. You will also need `graphite-clickhouse`_ as backend for Graphite-web.
+
+`cassabon`_
+  Carbon daemon using Cassandra as the backend, implemented in Go. It also acts as an API for Graphite (using the `Cyanite`_ reader) to retrieve the stats to display.
 
 `Ceres`_
   An alternate storage backend provided by the Graphite Project.  It it intended to be a distributable time-series database.  It is currently in a pre-release status.
@@ -247,19 +261,31 @@ If you wish to use a backend to graphite other than Whisper, there are some opti
 `Cyanite`_
   A highly available, elastic, and low-latency time-series storage wirtten on top of Cassandra
 
-`InfluxDB`_
-  A distributed time series database.
+`graphite-clickhouse`_
+  Graphite-web backend with `ClickHouse`_ support. Please also see `carbon-clickhouse`_.
 
-`KairosDB`_
-  A distributed time-series database written on top of Cassandra.
+`Graphouse`_
+  Graphouse allows you to use `ClickHouse`_ as a Graphite storage.
 
-`OpenTSDB`_
-  A distributed time-series database written on top of HBase.
+`go-carbon`_
+  Golang implementation of Graphite/Carbon server with classic architecture: Agent -> Cache -> Persister.
+
+`influxgraph`_
+  Graphite `InfluxDB`_ backend. `InfluxDB`_ storage finder / plugin for Graphite API.
+
+`Kenshin`_
+  A time-series database alternative to Graphite Whisper with 40x improvement in IOPS. It integrates with Graphite as a plugin.
+
+`metrictank`_
+  Cassandra-backed, metrics2.0 based, multi-tenant timeseries database for Graphite and friends.
 
 Other
 -----
 `bosun`_
   Time Series Alerting Framework. Can use Graphite as time series source.
+
+`carbonapi`_
+  3rd party reimplementation of graphite-web in Go, which supports a significant subset of graphite functions. In some testing it has shown to be 5x-10x faster than requesting data from graphite-web.
 
 `Bryans-Graphite-Tools`_
   A collection of miscellaneous scripts for pulling data from various devices, F5, Infoblox, Nutanix, etc.
@@ -270,8 +296,8 @@ Other
 `carbonate`_
   Utilities for managing graphite clusters.
 
-`go-carbon`_
-  Golang implementation of Graphite/Carbon server with classic architecture: Agent -> Cache -> Persister.
+`graphite-remote-adapter`_
+  Fully featured graphite remote adapter for `Prometheus`_.
 
 `riemann`_
   A network event stream processing system, in Clojure. Can use Graphite as source of event stream.
@@ -282,6 +308,7 @@ Other
 
 .. _Backbone.js: http://documentcloud.github.com/backbone
 .. _Backstop: https://github.com/obfuscurity/backstop
+.. _BigGraphite: https://github.com/criteo/biggraphite
 .. _bosun: http://bosun.org
 .. _Brubeck: https://github.com/github/brubeck
 .. _Bryans-Graphite-Tools: https://github.com/linkslice/graphite-tools
@@ -289,9 +316,13 @@ Other
 .. _buckytools: https://github.com/jjneely/buckytools
 .. _Cabot: https://github.com/arachnys/cabot
 .. _carbon-c-relay: https://github.com/grobian/carbon-c-relay
+.. _carbon-clickhouse: https://github.com/lomik/carbon-clickhouse
 .. _carbon-relay-ng: https://github.com/graphite-ng/carbon-relay-ng
+.. _carbonapi: https://github.com/go-graphite/carbonapi
 .. _carbonate: https://github.com/graphite-project/carbonate
+.. _cassabon: https://github.com/jeffpierce/cassabon
 .. _Ceres: https://github.com/graphite-project/ceres
+.. _ClickHouse: https://clickhouse.yandex
 .. _Charcoal: https://github.com/cebailey59/charcoal
 .. _collectd: http://collectd.org
 .. _collectd-carbon: https://github.com/indygreg/collectd-carbon
@@ -315,14 +346,17 @@ Other
 .. _Graphene: http://jondot.github.com/graphene
 .. _Graphios: https://github.com/shawn-sterling/graphios
 .. _graphite-beacon: https://github.com/klen/graphite-beacon
+.. _graphite-clickhouse: https://github.com/lomik/graphite-clickhouse
 .. _graphite-dashboardcli: https://github.com/blacked/graphite-dashboardcli
 .. _Graphite-Newrelic: https://github.com/gingerlime/graphite-newrelic
 .. _Graphite-relay: https://github.com/markchadwick/graphite-relay
+.. _graphite-remote-adapter: https://github.com/criteo/graphite-remote-adapter
 .. _Graphite-Tattle: https://github.com/wayfair/Graphite-Tattle
 .. _graphite-to-zabbix: https://github.com/blacked/graphite-to-zabbix
 .. _Graphiti: https://github.com/paperlesspost/graphiti
 .. _Graphitoid: https://market.android.com/details?id=com.tnc.android.graphite
 .. _graphitus: https://github.com/ezbz/graphitus
+.. _Graphouse: https://github.com/yandex/graphouse
 .. _Graphout: http://shamil.github.io/graphout
 .. _Graphsky: https://github.com/hyves-org/graphsky
 .. _Graph-Explorer: http://vimeo.github.io/graph-explorer
@@ -334,21 +368,24 @@ Other
 .. _Hubot: https://github.com/github/hubot
 .. _hubot-scripts: https://github.com/github/hubot-scripts
 .. _InfluxDB: https://influxdb.com/
+.. _influxgraph: https://github.com/InfluxGraph/influxgraph
 .. _Icinga: http://docs.icinga.org/icinga2/latest/doc/module/icinga2/chapter/icinga2-features#graphite-carbon-cache-writer
 .. _jmx2graphite: https://github.com/logzio/jmx2graphite
 .. _jmxtrans: https://github.com/jmxtrans/jmxtrans
-.. _KairosDB: http://kairosdb.github.io/
+.. _Kenshin: https://github.com/douban/Kenshin
 .. _Ledbetter: https://github.com/github/ledbetter
 .. _Leonardo: https://github.com/PrFalken/leonardo
 .. _Logster: https://github.com/etsy/logster
 .. _OpenTSDB: http://opentsdb.net/
 .. _Orion: https://github.com/gree/Orion
 .. _metrics-sampler: https://github.com/dimovelev/metrics-sampler
+.. _metrictank: https://github.com/grafana/metrictank
 .. _Moira: http://moira.readthedocs.io
 .. _New Relic: https://newrelic.com/platform
 .. _Pencil: https://github.com/fetep/pencil
 .. _pipe-to-graphite: https://github.com/iFixit/pipe-to-graphite
 .. _Polymur: https://github.com/jamiealquiza/polymur
+.. _Prometheus: https://github.com/prometheus/prometheus
 .. _RabbitMQ: http://www.rabbitmq.com
 .. _rearview: http://github.com/livingsocial/rearview
 .. _Rickshaw: http://code.shutterstock.com/rickshaw
@@ -357,12 +394,14 @@ Other
 .. _Sensu: http://sensuapp.org
 .. _Seyren: https://github.com/scobal/seyren
 .. _Shinken: http://www.shinken-monitoring.org
+.. _Skyline: https://github.com/earthgecko/skyline
 .. _snort2graphite: https://github.com/gregvolk/snort2graphite
 .. _SqlToGraphite: https://github.com/perryofpeek/SqlToGraphite
 .. _SSC Serv: https://ssc-serv.com
 .. _statsd: https://github.com/etsy/statsd
 .. _Tasseo: https://github.com/obfuscurity/tasseo
 .. _Targets-io: https://github.com/dmoll1974/targets-io
+.. _telegraf: https://github.com/influxdata/telegraf
 .. _Terphite: https://github.com/benwtr/terphite
 .. _Tessera: https://github.com/urbanairship/tessera
 .. _Therry: https://github.com/obfuscurity/therry

@@ -15,11 +15,11 @@ limitations under the License."""
 import os
 from smtplib import SMTP
 from socket import gethostname
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEText import MIMEText
-from email.MIMEImage import MIMEImage
-from httplib import HTTPConnection
-from urlparse import urlsplit
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+from six.moves.http_client import HTTPConnection
+from six.moves.urllib.parse import urlsplit
 from time import ctime, strftime
 from traceback import format_exc
 from graphite.user_util import getProfile
@@ -30,6 +30,7 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+
 
 def composer(request):
   profile = getProfile(request)
@@ -71,8 +72,7 @@ def mygraph(request):
       try:
         newGraph = MyGraph(profile=profile,name=graphName,url=url)
         newGraph.save()
-
-      except:
+      except Exception:
         log.exception("Failed to create new MyGraph in /composer/mygraph/, graphName=%s" % graphName)
         return HttpResponse("Failed to save graph %s" % graphName)
 
@@ -120,5 +120,5 @@ def send_email(request):
     s.sendmail('composer@%s' % gethostname(),recipients,message.as_string())
     s.quit()
     return HttpResponse( "OK" )
-  except:
-    return HttpResponse( format_exc() )
+  except Exception:
+    return HttpResponse(format_exc())

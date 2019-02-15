@@ -11,17 +11,23 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
+from __future__ import division
+
+import collections
+import re
+import time
+import types
+from six import text_type
+
+from django.conf import settings
 
 from graphite.logger import log
 from graphite.storage import STORE
-from graphite.readers import FetchInProgress
-from django.conf import settings
 from graphite.util import timebounds, logtime
 
-from traceback import format_exc
 
 class TimeSeries(list):
-  def __init__(self, name, start, end, step, values, consolidate='average'):
+  def __init__(self, name, start, end, step, values, consolidate='average', tags=None, xFilesFactor=None, pathExpression=None):
     list.__init__(self, values)
     self.name = name
     self.start = start
@@ -30,24 +36,33 @@ class TimeSeries(list):
     self.consolidationFunc = consolidate
     self.valuesPerPoint = 1
     self.options = {}
-    self.pathExpression = name
+    self.pathExpression = pathExpression or name
+    self.xFilesFactor = xFilesFactor if xFilesFactor is not None else settings.DEFAULT_XFILES_FACTOR
 
+    if tags:
+      self.tags = tags
+    else:
+      self.tags = {'name': name}
+      # parse for tags if a tagdb is configured and name doesn't look like a function-wrapped name
+      try:
+        if STORE.tagdb and not re.match('^[a-z]+[(].+[)]$', name, re.IGNORECASE):
+          self.tags = STORE.tagdb.parse(name).tags
+      except Exception as err:
+        # tags couldn't be parsed, just use "name" tag
+        log.debug("Couldn't parse tags for %s: %s" % (name, err))
 
   def __eq__(self, other):
-    if isinstance(other, TimeSeries):
-      color_check = True
-      if hasattr(self, 'color'):
-        if hasattr(other, 'color'):
-          color_check = (self.color == other.color)
-        else:
-          color_check = False
-      elif hasattr(other, 'color'):
-        color_check = False
+    if not isinstance(other, TimeSeries):
+      return False
 
-      return ((self.name, self.start, self.end, self.step, self.consolidationFunc, self.valuesPerPoint, self.options) ==
-              (other.name, other.start, other.end, other.step, other.consolidationFunc, other.valuesPerPoint, other.options)) and list.__eq__(self, other) and color_check
-    return False
+    if hasattr(self, 'color'):
+      if not hasattr(other, 'color') or (self.color != other.color):
+        return False
+    elif hasattr(other, 'color'):
+      return False
 
+    return ((self.name, self.start, self.end, self.step, self.consolidationFunc, self.valuesPerPoint, self.options, self.xFilesFactor) ==
+      (other.name, other.start, other.end, other.step, other.consolidationFunc, other.valuesPerPoint, other.options, other.xFilesFactor)) and list.__eq__(self, other)
 
   def __iter__(self):
     if self.valuesPerPoint > 1:
@@ -55,117 +70,114 @@ class TimeSeries(list):
     else:
       return list.__iter__(self)
 
-
   def consolidate(self, valuesPerPoint):
     self.valuesPerPoint = int(valuesPerPoint)
 
+  __consolidation_functions = {
+    'sum': sum,
+    'average': lambda usable: sum(usable) / len(usable),
+    'avg_zero': lambda usable: sum(usable) / len(usable),
+    'max': max,
+    'min': min,
+    'first': lambda usable: usable[0],
+    'last': lambda usable: usable[-1],
+  }
 
   def __consolidatingGenerator(self, gen):
+    try:
+      cf = self.__consolidation_functions[self.consolidationFunc]
+    except KeyError:
+      raise Exception("Invalid consolidation function: '%s'" % self.consolidationFunc)
+
     buf = []
+    valcnt = 0
+    nonNull = 0
+
     for x in gen:
-      buf.append(x)
-      if len(buf) == self.valuesPerPoint:
-        while None in buf: buf.remove(None)
-        if buf:
-          yield self.__consolidate(buf)
-          buf = []
+      valcnt += 1
+      if x is not None:
+        buf.append(x)
+        nonNull += 1
+      elif self.consolidationFunc == 'avg_zero':
+        buf.append(0)
+
+      if valcnt == self.valuesPerPoint:
+        if nonNull and (nonNull / self.valuesPerPoint) >= self.xFilesFactor:
+          yield cf(buf)
         else:
           yield None
-    while None in buf: buf.remove(None)
-    if buf: yield self.__consolidate(buf)
-    else: yield None
-    raise StopIteration
+        buf = []
+        valcnt = 0
+        nonNull = 0
 
+    if valcnt > 0:
+      if nonNull and (nonNull / self.valuesPerPoint) >= self.xFilesFactor:
+        yield cf(buf)
+      else:
+        yield None
 
-  def __consolidate(self, values):
-    usable = [v for v in values if v is not None]
-    if not usable: return None
-    if self.consolidationFunc == 'sum':
-      return sum(usable)
-    if self.consolidationFunc == 'average':
-      return float(sum(usable)) / len(usable)
-    if self.consolidationFunc == 'max':
-      return max(usable)
-    if self.consolidationFunc == 'min':
-      return min(usable)
-    raise Exception("Invalid consolidation function: '%s'" % self.consolidationFunc)
-
+    return
 
   def __repr__(self):
-    return 'TimeSeries(name=%s, start=%s, end=%s, step=%s)' % (self.name, self.start, self.end, self.step)
-
+    return 'TimeSeries(name=%s, start=%s, end=%s, step=%s, valuesPerPoint=%s, consolidationFunc=%s, xFilesFactor=%s)' % (
+      self.name, self.start, self.end, self.step, self.valuesPerPoint, self.consolidationFunc, self.xFilesFactor)
 
   def getInfo(self):
     """Pickle-friendly representation of the series"""
+    # make sure everything is unicode in python 2.x and 3.x
     return {
-      'name' : self.name,
-      'start' : self.start,
-      'end' : self.end,
-      'step' : self.step,
-      'values' : list(self),
-      'pathExpression' : self.pathExpression,
+      text_type('name') : text_type(self.name),
+      text_type('start') : self.start,
+      text_type('end') : self.end,
+      text_type('step') : self.step,
+      text_type('values') : list(self),
+      text_type('pathExpression') : text_type(self.pathExpression),
+      text_type('valuesPerPoint') : self.valuesPerPoint,
+      text_type('consolidationFunc'): text_type(self.consolidationFunc),
+      text_type('xFilesFactor') : self.xFilesFactor,
     }
 
+  def copy(self, name=None, start=None, end=None, step=None, values=None, consolidate=None, tags=None, xFilesFactor=None):
+    return TimeSeries(
+      name if name is not None else self.name,
+      start if start is not None else self.start,
+      end if end is not None else self.end,
+      step if step is not None else self.step,
+      values if values is not None else self.values,
+      consolidate=consolidate if consolidate is not None else self.consolidationFunc,
+      tags=tags if tags is not None else self.tags,
+      xFilesFactor=xFilesFactor if xFilesFactor is not None else self.xFilesFactor
+    )
 
-@logtime()
-def _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList):
-  if settings.REMOTE_PREFETCH_DATA:
-    matching_nodes = [node for node in STORE.find(pathExpr, startTime, endTime, local=True)]
+  def datapoints(self):
+    timestamps = range(int(self.start), int(self.end) + 1, int(self.step * self.valuesPerPoint))
+    return list(zip(self, timestamps))
 
-    # inflight_requests is only present if at least one remote store
-    # has been queried
-    if 'inflight_requests' in requestContext:
-      fetches = requestContext['inflight_requests']
-    else:
-      fetches = {}
 
-    def result_queue_generator():
-      for node in matching_nodes:
-        if node.is_leaf:
-          yield (node.path, node.fetch(startTime, endTime, now, requestContext))
+# Data retrieval API
+@logtime
+def fetchData(requestContext, pathExpr, timer=None):
+  timer.set_msg("lookup and merge of \"%s\" took" % str(pathExpr))
 
-      log.info(
-        'render.datalib.fetchData:: result_queue_generator got {count} fetches'
-        .format(count=len(fetches)),
-      )
-      for key, fetch in fetches.iteritems():
-        log.info(
-          'render.datalib.fetchData:: getting results of {host}'
-          .format(host=key),
-        )
+  seriesList = {}
+  (startTime, endTime, now) = timebounds(requestContext)
 
-        if isinstance(fetch, FetchInProgress):
-          fetch = fetch.waitForResults()
+  prefetched = requestContext.get('prefetched', {}).get((startTime, endTime, now), {}).get(pathExpr)
+  if not prefetched:
+    return []
 
-        if fetch is None:
-          log.info('render.datalib.fetchData:: fetch is None')
-          continue
+  return _merge_results(pathExpr, startTime, endTime, prefetched, seriesList, requestContext)
 
-        for result in fetch:
-          yield (
-            result['path'],
-            (
-              (result['start'], result['end'], result['step']),
-              result['values'],
-            ),
-          )
 
-    result_queue = result_queue_generator()
-  else:
-    matching_nodes = [node for node in STORE.find(pathExpr, startTime, endTime, local=requestContext['localOnly'])]
-    result_queue = [
-      (node.path, node.fetch(startTime, endTime, now, requestContext))
-      for node in matching_nodes
-      if node.is_leaf
-    ]
+def _merge_results(pathExpr, startTime, endTime, prefetched, seriesList, requestContext):
+  log.debug("render.datalib.fetchData :: starting to merge")
 
-  log.info("render.datalib.fetchData :: starting to merge")
-  for path, results in result_queue:
-    if isinstance(results, FetchInProgress):
-      results = results.waitForResults()
+  # Used as a cache to avoid recounting series None values below.
+  series_best_nones = {}
 
+  for path, results in prefetched:
     if not results:
-      log.info("render.datalib.fetchData :: no results for %s.fetch(%s, %s)" % (path, startTime, endTime))
+      log.debug("render.datalib.fetchData :: no results for %s.fetch(%s, %s)" % (path, startTime, endTime))
       continue
 
     try:
@@ -174,13 +186,10 @@ def _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList):
       raise Exception("could not parse timeInfo/values from metric '%s': %s" % (path, e))
     (start, end, step) = timeInfo
 
-    series = TimeSeries(path, start, end, step, values)
+    series = TimeSeries(path, start, end, step, values, xFilesFactor=requestContext.get('xFilesFactor'))
 
     # hack to pass expressions through to render functions
     series.pathExpression = pathExpr
-
-    # Used as a cache to avoid recounting series None values below.
-    series_best_nones = {}
 
     if series.name in seriesList:
       # This counts the Nones in each series, and is unfortunately O(n) for each
@@ -202,13 +211,14 @@ def _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList):
         known_nones = series_best_nones[known.name]
       else:
         known_nones = len([val for val in known if val is None])
+        series_best_nones[known.name] = known_nones
 
-      if known_nones > candidate_nones:
-        if settings.REMOTE_STORE_MERGE_RESULTS:
+      if known_nones > candidate_nones and len(series):
+        if settings.REMOTE_STORE_MERGE_RESULTS and len(series) == len(known):
           # This series has potential data that might be missing from
           # earlier series.  Attempt to merge in useful data and update
           # the cache count.
-          log.info("Merging multiple TimeSeries for %s" % known.name)
+          log.debug("Merging multiple TimeSeries for %s" % known.name)
           for i, j in enumerate(known):
             if j is None and series[i] is not None:
               known[i] = series[i]
@@ -221,22 +231,6 @@ def _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList):
           # the count cache and replace the given series in the array.
           series_best_nones[known.name] = candidate_nones
           seriesList[known.name] = series
-      else:
-        if settings.REMOTE_PREFETCH_DATA:
-          # if we're using REMOTE_PREFETCH_DATA we can save some time by skipping
-          # find, but that means we don't know how many nodes to expect so we
-          # have to iterate over all returned results
-          continue
-
-        # In case if we are merging data - the existing series has no gaps and
-        # there is nothing to merge together.  Save ourselves some work here.
-        #
-        # OR - if we picking best serie:
-        #
-        # We already have this series in the seriesList, and the
-        # candidate is 'worse' than what we already have, we don't need
-        # to compare anything else. Save ourselves some work here.
-        break
 
     else:
       # If we looked at this series above, and it matched a 'known'
@@ -249,33 +243,45 @@ def _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList):
   return [seriesList[k] for k in sorted(seriesList)]
 
 
-# Data retrieval API
-@logtime()
-def fetchData(requestContext, pathExpr):
-  seriesList = {}
+def prefetchData(requestContext, pathExpressions):
+  """Prefetch a bunch of path expressions and stores them in the context.
+
+  The idea is that this will allow more batching than doing a query
+  each time evaluateTarget() needs to fetch a path. All the prefetched
+  data is stored in the requestContext, to be accessed later by fetchData.
+  """
+  if not pathExpressions:
+    return
+
+  start = time.time()
+  log.debug("Fetching data for [%s]" % (', '.join(pathExpressions)))
+
   (startTime, endTime, now) = timebounds(requestContext)
 
-  retries = 1 # start counting at one to make log output and settings more readable
-  while True:
-    try:
-      seriesList = _fetchData(pathExpr, startTime, endTime, now, requestContext, seriesList)
-      break
-    except Exception:
-      if retries >= settings.MAX_FETCH_RETRIES:
-        log.exception("Failed after %s retry! Root cause:\n%s" %
-            (settings.MAX_FETCH_RETRIES, format_exc()))
-        raise
-      else:
-        log.exception("Got an exception when fetching data! Try: %i of %i. Root cause:\n%s" %
-                     (retries, settings.MAX_FETCH_RETRIES, format_exc()))
-        retries += 1
+  prefetched = collections.defaultdict(list)
 
-  return seriesList
+  for result in STORE.fetch(pathExpressions, startTime, endTime, now, requestContext):
+    if result is None:
+      continue
 
+    prefetched[result['pathExpression']].append((
+      result['name'],
+      (
+        result['time_info'],
+        result['values'],
+      ),
+    ))
 
-def nonempty(series):
-  for value in series:
-    if value is not None:
-      return True
+  # Several third-party readers including rrdtool and biggraphite return values in a
+  # generator which can only be iterated on once. These must be converted to a list.
+  for pathExpression, items in prefetched.items():
+    for i, (name, (time_info, values)) in enumerate(items):
+      if isinstance(values, types.GeneratorType):
+        prefetched[pathExpression][i] = (name, (time_info, list(values)))
 
-  return False
+  if not requestContext.get('prefetched'):
+    requestContext['prefetched'] = {}
+
+  requestContext['prefetched'][(startTime, endTime, now)] = prefetched
+
+  log.rendering("Fetched data for [%s] in %fs" % (', '.join(pathExpressions), time.time() - start))
