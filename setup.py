@@ -74,7 +74,7 @@ examples = [ ('examples', glob('examples/example-*')) ]
 try:
     setup(
       name='graphite-web',
-      version='1.2.0-criteo8',
+      version='1.2.0-criteo9',
       url='http://graphiteapp.org/',
       author='Chris Davis',
       author_email='chrismd@gmail.com',
