@@ -21,6 +21,7 @@ from graphite.render.datalib import TimeSeries
 from graphite.render.evaluator import evaluateTarget
 from graphite.util import epoch_to_dt
 
+
 class StorageTest(TestCase):
 
   def test_fetch(self):
@@ -85,6 +86,49 @@ class StorageTest(TestCase):
 
     with patch('graphite.storage.log.info') as log_info:
       with self.assertRaisesRegexp(Exception, 'All requests failed for fetch for \[\'a\'\] \(1\)'):
+        list(store.fetch(['a'], 1, 2, 3, {}))
+      self.assertEqual(log_info.call_count, 1)
+      self.assertRegexpMatches(log_info.call_args[0][0], 'Exception during fetch for \[\'a\'\] after [-.e0-9]+s: TestFinder.find_nodes')
+
+    store = Store(
+      finders=[TestFinder(), TestFinder()]
+    )
+
+    with patch('graphite.storage.log.info') as log_info:
+      with self.assertRaisesRegexp(Exception, 'All requests failed for fetch for \[\'a\'\] \(2\)'):
+        list(store.fetch(['a'], 1, 2, 3, {}))
+      self.assertEqual(log_info.call_count, 2)
+      self.assertRegexpMatches(log_info.call_args[0][0], 'Exception during fetch for \[\'a\'\] after [-.e0-9]+s: TestFinder.find_nodes')
+
+  def test_fetch_some_failed(self):
+    # some finders failed
+    store = Store(
+      finders=[TestFinder(), RemoteFinder()]
+    )
+
+    with patch('graphite.storage.log.info') as log_info:
+      list(store.fetch(['a'], 1, 2, 3, {}))
+      self.assertEqual(log_info.call_count, 1)
+
+    store = Store(
+      finders=[TestFinder(), TestFinder()]
+    )
+
+    with patch('graphite.storage.log.info') as log_info:
+      with self.assertRaisesRegexp(Exception, 'All requests failed for fetch for \[\'a\'\] \(2\)'):
+        list(store.fetch(['a'], 1, 2, 3, {}))
+      self.assertEqual(log_info.call_count, 2)
+      self.assertRegexpMatches(log_info.call_args[0][0], 'Exception during fetch for \[\'a\'\] after [-.e0-9]+s: TestFinder.find_nodes')
+
+  @override_settings(STORE_FAIL_ON_ERROR=True)
+  def test_fetch_some_failed_hard_fail_enabled(self):
+    # all finds failed
+    store = Store(
+      finders=[TestFinder(), RemoteFinder()]
+    )
+
+    with patch('graphite.storage.log.info') as log_info:
+      with self.assertRaisesRegexp(Exception, '1 request\(s\) failed for fetch for \[\'a\'\] \(2\)'):
         list(store.fetch(['a'], 1, 2, 3, {}))
       self.assertEqual(log_info.call_count, 1)
       self.assertRegexpMatches(log_info.call_args[0][0], 'Exception during fetch for \[\'a\'\] after [-.e0-9]+s: TestFinder.find_nodes')
@@ -393,13 +437,11 @@ class StorageTest(TestCase):
         test.assertEqual(requestContext, self.context)
         return ['testtags']
 
-
     class TestFinderNoTags(BaseFinder):
       tags = False
 
       def find_nodes(self, query):
         pass
-
 
     class TestFinderTagsException(TestFinderTags):
       def auto_complete_tags(self, exprs, tagPrefix=None, limit=None, requestContext=None):
@@ -407,7 +449,6 @@ class StorageTest(TestCase):
 
       def auto_complete_values(self, exprs, tag, valuePrefix=None, limit=None, requestContext=None):
         raise Exception('TestFinderTagsException.auto_complete_values')
-
 
     class TestFinderTagsTimeout(TestFinderTags):
       def auto_complete_tags(self, exprs, tagPrefix=None, limit=None, requestContext=None):
@@ -417,7 +458,6 @@ class StorageTest(TestCase):
       def auto_complete_values(self, exprs, tag, valuePrefix=None, limit=None, requestContext=None):
         time.sleep(0.1)
         return ['testtags']
-
 
     def mockStore(finders, request_limit=100, request_context=None):
       tagdb = Mock()

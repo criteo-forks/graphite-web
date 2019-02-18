@@ -31,6 +31,7 @@ from graphite.util import json
 def return_greater(series, value):
     return [i for i in series if i is not None and i > value]
 
+
 def return_less(series, value):
     return [i for i in series if i is not None and i < value]
 
@@ -300,7 +301,6 @@ class FunctionsTest(TestCase):
 
     def test_safeMax_mixed(self):
         self.assertEqual(functions.safeMax([10,None,5,None]), 10)
-
 
     #
     # Test safeAbs()
@@ -767,7 +767,6 @@ class FunctionsTest(TestCase):
             result = functions._getPercentile(series, 0, True)
             self.assertEqual(expected, result, 'For series index <%s> the 0th percentile ordinal is not %d, but %d ' % (index, expected, result))
 
-
     def testGetPercentile_interpolated(self):
         seriesList = [
             ([None, None, 15, 20, 35, 40, 50], 19.0),
@@ -811,7 +810,8 @@ class FunctionsTest(TestCase):
                 'collectd.test-db2.load.value',
                 'collectd.test-db3.load.value',
                 'collectd.test-db4.load.value',
-                'collectd.test-db5.load.value'
+                'collectd.test-db5.load.value',
+                'collectd.test-db6.load.value',
             ],
             end=1,
             data=[
@@ -819,7 +819,8 @@ class FunctionsTest(TestCase):
                 [None,2,None,4,None,6,None,8,None,10,None,12,None,14,None,16,None,18,None,20],
                 [1,2,None,None,None,6,7,8,9,10,11,12,13,14,15,16,17,None,None,None],
                 [1,2,3,4,None,6,None,None,9,10,11,None,13,None,None,None,None,18,19,20],
-                [1,2,None,None,None,6,7,8,9,10,11,12,13,14,15,16,17,18,None,None]
+                [1,2,None,None,None,6,7,8,9,10,11,12,13,14,15,16,17,18,None,None],
+                [1,None,3,None,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,None],
             ]
         )
 
@@ -829,6 +830,7 @@ class FunctionsTest(TestCase):
             TimeSeries('keepLastValue(collectd.test-db3.load.value)',0,1,1,[1,2,None,None,None,6,7,8,9,10,11,12,13,14,15,16,17,None,None,None]),
             TimeSeries('keepLastValue(collectd.test-db4.load.value)',0,1,1,[1,2,3,4,4,6,6,6,9,10,11,11,13,None,None,None,None,18,19,20]),
             TimeSeries('keepLastValue(collectd.test-db5.load.value)',0,1,1,[1,2,None,None,None,6,7,8,9,10,11,12,13,14,15,16,17,18,18,18]),
+            TimeSeries('keepLastValue(collectd.test-db6.load.value)',0,1,1,[1,1,3,3,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,19]),
         ]
         results = functions.keepLastValue({}, seriesList, 2)
         self.assertEqual(results, expectedResult)
@@ -876,11 +878,50 @@ class FunctionsTest(TestCase):
 
     def test_delay(self):
         source = [
-            TimeSeries('collectd.test-db1.load.value',0,1,1,[list(range(18))] + [None, None]),
+            TimeSeries('collectd.test-db1.load.value',0,1,1,list(range(18)) + [None, None]),
         ]
         delay = 2
         expectedList = [
-            TimeSeries('delay(collectd.test-db1.load.value,2)',0,1,1,[None, None] + [list(range(18))]),
+            TimeSeries('delay(collectd.test-db1.load.value,2)',0,1,1,[None, None] + list(range(18))),
+        ]
+        gotList = functions.delay({}, source, delay)
+        self.assertEqual(len(gotList), len(expectedList))
+        for got, expected in zip(gotList, expectedList):
+            self.assertEqual(got, expected)
+
+    def test_delay_too_many_steps(self):
+        source = [
+            TimeSeries('collectd.test-db1.load.value',0,1,1,list(range(20))),
+        ]
+        delay = 25
+        expectedList = [
+            TimeSeries('delay(collectd.test-db1.load.value,25)',0,1,1,[None]*20),
+        ]
+        gotList = functions.delay({}, source, delay)
+        self.assertEqual(len(gotList), len(expectedList))
+        for got, expected in zip(gotList, expectedList):
+            self.assertEqual(got, expected)
+
+    def test_delay_negative(self):
+        source = [
+            TimeSeries('collectd.test-db1.load.value',0,1,1,[None,None] + list(range(2,20))),
+        ]
+        delay = -2
+        expectedList = [
+            TimeSeries('delay(collectd.test-db1.load.value,-2)',0,1,1,list(range(2,20)) + [None,None]),
+        ]
+        gotList = functions.delay({}, source, delay)
+        self.assertEqual(len(gotList), len(expectedList))
+        for got, expected in zip(gotList, expectedList):
+            self.assertEqual(got, expected)
+
+    def test_delay_negative_too_many_steps(self):
+        source = [
+            TimeSeries('collectd.test-db1.load.value',0,1,1,list(range(20))),
+        ]
+        delay = -25
+        expectedList = [
+            TimeSeries('delay(collectd.test-db1.load.value,-25)',0,1,1,[None]*20),
         ]
         gotList = functions.delay({}, source, delay)
         self.assertEqual(len(gotList), len(expectedList))
@@ -917,7 +958,6 @@ class FunctionsTest(TestCase):
                 [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
             ]
         )
-
 
         with self.assertRaisesRegexp(ValueError, "asPercent second argument must be missing, a single digit, reference exactly 1 series or reference the same number of series as the first argument"):
             functions.asPercent({}, seriesList, seriesList2)
@@ -1022,7 +1062,6 @@ class FunctionsTest(TestCase):
                 [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
             ]
         )
-
 
         expectedResult = [
             TimeSeries('asPercent(collectd.test-db1.load.value,collectd.test-db1.load.value)',0,1,1,[100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]),
@@ -1274,7 +1313,6 @@ class FunctionsTest(TestCase):
         with self.assertRaisesRegexp(ValueError, "divideSeries second argument must reference exactly 1 series \(got 2\)"):
             functions.divideSeries({}, seriesList, seriesList2)
 
-
     def test_divideSeries_seriesList2_single(self):
         seriesList = self._gen_series_list_with_data(
             key=[
@@ -1401,7 +1439,7 @@ class FunctionsTest(TestCase):
     def test_consolidateBy(self):
         seriesList = self._generate_series_list()
         self._verify_series_consolidationFunc(seriesList, "average")
-        avail_funcs = ['sum', 'average', 'min', 'max', 'first', 'last']
+        avail_funcs = ['sum', 'average', 'avg_zero', 'min', 'max', 'first', 'last']
         for func in avail_funcs:
             results = functions.consolidateBy({}, seriesList, func)
             self._verify_series_consolidationFunc(results, func)
@@ -1597,6 +1635,18 @@ class FunctionsTest(TestCase):
         seriesList = self._gen_series_list_with_data(key='test',start=0,end=600,step=60,data=[0, 1, 2, 3, 4, 5, 0, 1, 2, 3])
         expected = [TimeSeries('nonNegativeDerivative(test)', 0, 600, 60, [None, 1, 1, 1, 1, 1, 1, 1, 1, 1])]
         result = functions.nonNegativeDerivative({}, seriesList,5)
+        self.assertEqual(expected, result, 'nonNegativeDerivative result incorrect')
+
+    def test_nonNegativeDerivative_min(self):
+        seriesList = self._gen_series_list_with_data(key='test',start=0,end=600,step=60,data=[0, 1, 2, 3, 4, 5, 2, 3, 4, 5])
+        expected = [TimeSeries('nonNegativeDerivative(test)', 0, 600, 60, [None, None, 1, 1, 1, 1, 1, 1, 1, 1])]
+        result = functions.nonNegativeDerivative({}, seriesList,None,1)
+        self.assertEqual(expected, result, 'nonNegativeDerivative result incorrect')
+
+    def test_nonNegativeDerivative_min_max(self):
+        seriesList = self._gen_series_list_with_data(key='test',start=0,end=600,step=60,data=[0, 1, 2, 3, 4, 5, 2, 3, 4, 5])
+        expected = [TimeSeries('nonNegativeDerivative(test)', 0, 600, 60, [None, None, 1, 1, 1, 1, 3, 1, 1, 1])]
+        result = functions.nonNegativeDerivative({}, seriesList,6,1)
         self.assertEqual(expected, result, 'nonNegativeDerivative result incorrect')
 
     def test_perSecond(self):
@@ -1809,7 +1859,6 @@ class FunctionsTest(TestCase):
         result = functions.cactiStyle(requestContext, seriesList, units="b")
         self.assertEqual(result, expectedResult)
 
-
     def test_cactiStyle_emptyList(self):
         result = functions.cactiStyle({}, [])
         self.assertEqual(result, [])
@@ -1875,7 +1924,6 @@ class FunctionsTest(TestCase):
         requestContext = {}
         result = functions.cactiStyle(requestContext, seriesList, "binary", "b")
         self.assertEqual(result, expectedResult)
-
 
     def test_n_percentile(self):
         config = [
@@ -2384,7 +2432,6 @@ class FunctionsTest(TestCase):
         result = functions.removeEmptySeries({}, seriesList, 1)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], 1000)
-
 
     def test_unique(self):
         seriesList = [
@@ -2971,7 +3018,6 @@ class FunctionsTest(TestCase):
         for i, series in enumerate(seriesList):
           verify_groupByNode([expectedResult[i]], 3, [series])
 
-
     def test_groupByNodes(self):
         seriesList, inputList = self._generate_mr_series()
 
@@ -3198,7 +3244,6 @@ class FunctionsTest(TestCase):
             if type(v) is float:
               series[k] = round(v,7)
         self.assertEqual(result, expectedResult)
-
 
     def test_maximumAbove(self):
         seriesList = self._gen_series_list_with_data(
@@ -3577,10 +3622,10 @@ class FunctionsTest(TestCase):
         )
 
         expectedResult = [
-            TimeSeries('aggregateLine(collectd.test-db1.load.value, 4)', 3600, 3600, 0, [4.0, 4.0, 4.0]),
-            TimeSeries('aggregateLine(collectd.test-db2.load.value, None)', 3600, 3600, 0, [None, None, None]),
-            TimeSeries('aggregateLine(collectd.test-db3.load.value, 1.85714)', 3600, 3600, 0, [1.8571428571428572, 1.8571428571428572, 1.8571428571428572]),
-            TimeSeries('aggregateLine(collectd.test-db4.load.value, 8.22222)', 3600, 3600, 0, [8.222222222222221, 8.222222222222221, 8.222222222222221]),
+            TimeSeries('aggregateLine(collectd.test-db1.load.value, 4)', 0, 600, 60, [4.0] * 10),
+            TimeSeries('aggregateLine(collectd.test-db2.load.value, None)', 0, 600, 60, [None] * 10),
+            TimeSeries('aggregateLine(collectd.test-db3.load.value, 1.85714)', 0, 600, 60, [1.8571428571428572] * 10),
+            TimeSeries('aggregateLine(collectd.test-db4.load.value, 8.22222)', 0, 600, 60, [8.222222222222221] * 10),
         ]
         result = functions.aggregateLine(
             self._build_requestContext(
@@ -3588,7 +3633,8 @@ class FunctionsTest(TestCase):
                 endTime=datetime(1970,1,1,1,0,0,0,pytz.timezone(settings.TIME_ZONE))
             ),
             seriesList,
-            'avg'
+            'avg',
+            keepStep=True
         )
         self.assertEqual(result, expectedResult)
 
@@ -3635,10 +3681,10 @@ class FunctionsTest(TestCase):
         )
 
         expectedResult = [
-            TimeSeries('aggregateLine(collectd.test-db1.load.value, 7)', 3600, 3600, 0, [7.0, 7.0, 7.0]),
-            TimeSeries('aggregateLine(collectd.test-db2.load.value, None)', 3600, 3600, 0, [None, None, None]),
-            TimeSeries('aggregateLine(collectd.test-db3.load.value, 4)', 3600, 3600, 0, [4.0, 4.0, 4.0]),
-            TimeSeries('aggregateLine(collectd.test-db4.load.value, 10)', 3600, 3600, 0, [10.0, 10.0, 10.0]),
+            TimeSeries('aggregateLine(collectd.test-db1.load.value, 7)', 0, 600, 60, [7.0] * 10),
+            TimeSeries('aggregateLine(collectd.test-db2.load.value, None)', 0, 600, 60, [None] * 10),
+            TimeSeries('aggregateLine(collectd.test-db3.load.value, 4)', 0, 600, 60, [4.0] * 10),
+            TimeSeries('aggregateLine(collectd.test-db4.load.value, 10)', 0, 600, 60, [10.0] * 10),
         ]
         result = functions.aggregateLine(
             self._build_requestContext(
@@ -3646,7 +3692,8 @@ class FunctionsTest(TestCase):
                 endTime=datetime(1970,1,1,1,0,0,0,pytz.timezone(settings.TIME_ZONE))
             ),
             seriesList,
-            'max'
+            'max',
+            keepStep=True
         )
         self.assertEqual(result, expectedResult)
 
@@ -4103,7 +4150,6 @@ class FunctionsTest(TestCase):
 
         result = functions.legendValue({}, seriesList, "avg", "bogus")
         self.assertEqual(result, expectedResult)
-
 
     @patch('graphite.render.evaluator.prefetchData', lambda *_: None)
     def test_linearRegression(self):

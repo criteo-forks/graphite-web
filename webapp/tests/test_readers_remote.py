@@ -148,7 +148,7 @@ class RemoteReaderTests(TestCase):
         responseObject = HTTPResponse(body=BytesIO(b'error'), status=200, preload_content=False)
         http_request.return_value = responseObject
 
-        with self.assertRaisesRegexp(Exception, 'Error decoding render response from http://[^ ]+: .+'):
+        with self.assertRaisesRegexp(Exception, 'Error decoding response from http://[^ ]+: .+'):
           reader.fetch(startTime, endTime)
 
         # invalid response data
@@ -163,7 +163,7 @@ class RemoteReaderTests(TestCase):
         )
         http_request.return_value = responseObject
 
-        with self.assertRaisesRegexp(Exception, 'Invalid render response from http://[^ ]+: KeyError\(\'name\',\)'):
+        with self.assertRaisesRegexp(Exception, 'Invalid render response from http://[^ ]+: KeyError\(\'name\',?\)'):
           reader.fetch(startTime, endTime)
 
         # non-200 response

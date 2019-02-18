@@ -23,31 +23,21 @@ Existing tools and APIs
 
 The plaintext protocol
 ----------------------
-The plaintext protocol is the most straightforward protocol supported by Carbon. 
+The plaintext protocol is the most straightforward protocol supported by Carbon.
 
 The data sent must be in the following format: ``<metric path> <metric value> <metric timestamp>``. Carbon will then help translate this line of text into a metric that the web interface and Whisper understand.
 
 On Unix, the ``nc`` program (``netcat``) can be used to create a socket and send data to Carbon (by default, 'plaintext' runs on port 2003):
 
-If you use the OpenBSD implementation of ``netcat``, please follow this example:
-
   .. code-block:: none
- 
+
    PORT=2003
    SERVER=graphite.your.org
-   echo "local.random.diceroll 4 `date +%s`" | nc -q0 ${SERVER} ${PORT}
-
-  The ``-q0`` parameter instructs ``nc`` to close socket once data is sent. Without this option, some ``nc`` versions would keep the connection open.
-
-If you use the GNU implementation of ``netcat``, please follow this example:
-
-  .. code-block:: none
- 
-   PORT=2003
-   SERVER=graphite.your.org
-   echo "local.random.diceroll 4 `date +%s`" | nc -c ${SERVER} ${PORT}
-
-  The ``-c`` parameter instructs ``nc`` to close socket once data is sent. Without this option, ``nc`` will keep the connection open and won't end.
+   echo "local.random.diceroll 4 `date +%s`" | nc ${SERVER} ${PORT}
+  
+  As many ``netcat`` implementations exist, a parameter may be needed to instruct ``nc`` to close the socket once data is sent. Such param will usually be ``-q0``, ``-c`` or ``-N``. Refer to your ``nc`` implementation man page to determine it.
+  
+  Note that if your Carbon instance is listening using the UDP protocol, you also need the ``-u`` parameter.
 
 The pickle protocol
 -------------------
@@ -56,7 +46,7 @@ The pickle protocol is a much more efficient take on the plaintext protocol, and
 The general idea is that the pickled data forms a list of multi-level tuples:
 
 .. code-block:: none
- 
+
  [(path, (timestamp, value)), ...]
 
 Once you've formed a list of sufficient size (don't go too big!), and pickled it (if your client is running a more recent version of python than your server, you may need to specify the protocol) send the data over a socket to Carbon's pickle receiver (by default, port 2004). You'll need to pack your pickled data into a packet containing a simple header:
@@ -89,7 +79,7 @@ Graphite is useful if you have some numeric values that change over time and you
 Step 1 - Plan a Naming Hierarchy
 --------------------------------
 
-Every series stored in Graphite has a unique identifier, which is composed of a matric name and optionally a set of tags.
+Every series stored in Graphite has a unique identifier, which is composed of a metric name and optionally a set of tags.
 
 In a traditional hierarchy, website.orbitz.bookings.air or something like that would represent the number of air bookings on orbitz. Before producing your data you need to decide what your naming scheme will be.  In a path such as "foo.bar.baz", each thing surrounded by dots is called a path component. So "foo" is a path component, as well as "bar", etc.
 
@@ -146,7 +136,7 @@ Graphite understands messages with this format:
 
 ``value`` is the value that you want to assign to the metric at this time.
 
-``timestamp`` is the number of seconds since unix epoch time.
+``timestamp`` is the number of seconds since unix epoch time. Carbon-cache will use the time of arrival if the ``timestamp`` is set to ``-1``.
 
 A simple example of doing this from the unix terminal would look like this:
 

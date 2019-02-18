@@ -18,6 +18,7 @@ import os
 import sys
 from os.path import abspath, dirname, join
 from warnings import warn
+from importlib import import_module
 
 from django import VERSION as DJANGO_VERSION
 try:
@@ -71,10 +72,11 @@ REMOTE_FIND_TIMEOUT = None  # Replaced by FIND_TIMEOUT
 REMOTE_FETCH_TIMEOUT = None  # Replaced by FETCH_TIMEOUT
 REMOTE_RETRY_DELAY = 60.0
 REMOTE_EXCLUDE_LOCAL = False
+STORE_FAIL_ON_ERROR = False
 REMOTE_STORE_MERGE_RESULTS = True
 REMOTE_STORE_FORWARD_HEADERS = []
 REMOTE_STORE_USE_POST = False
-REMOTE_BUFFER_SIZE = 1024 * 1024
+REMOTE_BUFFER_SIZE = 1024 * 1024 # Set to 0 to prevent streaming deserialization
 
 # Carbonlink settings
 CARBON_METRIC_PREFIX='carbon'
@@ -205,10 +207,11 @@ DATABASES = None
 FLUSHRRDCACHED = ''
 
 ## Load our local_settings
+SETTINGS_MODULE = os.environ.get('GRAPHITE_SETTINGS_MODULE', 'graphite.local_settings')
 try:
-  from graphite.local_settings import *  # noqa
+  globals().update(import_module(SETTINGS_MODULE).__dict__)
 except ImportError:
-  print("Could not import graphite.local_settings, using defaults!", file=sys.stderr)
+  print("Could not import {0}, using defaults!".format(SETTINGS_MODULE), file=sys.stderr)
 
 ## Load Django settings if they werent picked up in local_settings
 if not GRAPHITE_WEB_APP_SETTINGS_LOADED:

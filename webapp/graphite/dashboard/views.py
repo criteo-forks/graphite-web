@@ -15,6 +15,7 @@ from graphite.dashboard.models import Dashboard, Template
 from graphite.dashboard.send_graph import send_graph_email
 from graphite.render.views import renderView
 from graphite.util import json
+from graphite.user_util import isAuthenticated
 
 fieldRegex = re.compile(r'<([^>]+)>')
 defaultScheme = {
@@ -41,6 +42,7 @@ defaultKeyboardShortcuts = {
 }
 
 ALL_PERMISSIONS = ['change', 'delete']
+
 
 class DashboardConfig:
   def __init__(self):
@@ -200,9 +202,10 @@ def template(request, name, val):
     context['initialState'] = json.dumps(state)
   return render_to_response("dashboard.html", context)
 
+
 def getPermissions(user):
   """Return [change, delete] based on authorisation model and user privileges/groups"""
-  if user and not user.is_authenticated():
+  if user and not isAuthenticated(user):
     user = None
   if not settings.DASHBOARD_REQUIRE_AUTHENTICATION:
     return ALL_PERMISSIONS      # don't require login

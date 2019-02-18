@@ -131,6 +131,17 @@ class Store(object):
                 )
             raise Exception(message)
 
+        if len(results) < len(jobs) and settings.STORE_FAIL_ON_ERROR:
+            message = "%s request(s) failed for %s (%d)" % (
+                len(jobs) - len(results), context, len(jobs)
+            )
+            for job in failed:
+                message += "\n\n%s: %s: %s" % (
+                    job, job.exception,
+                    '\n'.join(traceback.format_exception(*job.exception_info))
+                )
+            raise Exception(message)
+
         return results
 
     def fetch(self, patterns, startTime, endTime, now, requestContext):
@@ -422,7 +433,6 @@ class Store(object):
           else:
             use_tagdb = True
 
-
         results = set()
 
         # if we're using the local tagdb then execute it (in the main thread
@@ -519,7 +529,7 @@ def write_index(index=None):
   finally:
     try:
       os.unlink(tmp)
-    except:
+    except OSError:
       pass
   return None
 

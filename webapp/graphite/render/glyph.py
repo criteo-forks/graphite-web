@@ -19,6 +19,7 @@ from six.moves.urllib.parse import unquote_plus
 from six.moves.configparser import SafeConfigParser
 from django.conf import settings
 import pytz
+import six
 
 from graphite.render.datalib import TimeSeries
 from graphite.util import json, BytesIO
@@ -594,7 +595,7 @@ class Graph:
       r,g,b = value
     elif value in colorAliases:
       r,g,b = colorAliases[value]
-    elif type(value) in (str,unicode) and len(value) >= 6:
+    elif isinstance(value, six.string_types) and len(value) >= 6:
       s = value
       if s[0] == '#': s = s[1:]
       if s[0:3] == '%23': s = s[3:]
@@ -688,7 +689,6 @@ class Graph:
       self.area['ymin'] = y
     else:
       self.area['ymin'] = y + self.margin
-
 
   def drawLegend(self, elements, unique=False): #elements is [ (name,color,rightSide), (name,color,rightSide), ... ]
     self.encodeHeader('legend')
@@ -985,7 +985,7 @@ class LineGraph(Graph):
     if 'yUnitSystem' not in params:
       params['yUnitSystem'] = 'si'
     else:
-      params['yUnitSystem'] = unicode(params['yUnitSystem']).lower()
+      params['yUnitSystem'] = six.text_type(params['yUnitSystem']).lower()
       if params['yUnitSystem'] not in UnitSystems:
         params['yUnitSystem'] = 'si'
 
@@ -1044,11 +1044,11 @@ class LineGraph(Graph):
     self.setColor( self.foregroundColor )
 
     if params.get('title'):
-      self.drawTitle( unicode( unquote_plus(params['title']) ) )
+      self.drawTitle( six.text_type( unquote_plus(params['title']) ) )
     if params.get('vtitle'):
-      self.drawVTitle( unicode( unquote_plus(params['vtitle']) ) )
+      self.drawVTitle( six.text_type( unquote_plus(params['vtitle']) ) )
     if self.secondYAxis and params.get('vtitleRight'):
-      self.drawVTitle( unicode( unquote_plus(params['vtitleRight']) ), rightAlign=True )
+      self.drawVTitle( six.text_type( unquote_plus(params['vtitleRight']) ), rightAlign=True )
     self.setFont()
 
     if not params.get('hideLegend', len(self.data) > settings.LEGEND_MAX_ITEMS):
@@ -1165,7 +1165,6 @@ class LineGraph(Graph):
     pixelToValueRatio = pixelRange / valueRange
     valueInPixels = pixelToValueRatio * relativeValue
     return self.area['ymax'] - valueInPixels
-
 
   def drawLines(self, width=None, dash=None, linecap='butt', linejoin='miter'):
     if not width: width = self.lineWidth
@@ -1592,7 +1591,6 @@ class LineGraph(Graph):
     self.xMinorGridStep = self.xConf['minorGridUnit'] * self.xConf['minorGridStep']
     self.xMajorGridStep = self.xConf['majorGridUnit'] * self.xConf['majorGridStep']
 
-
   def drawLabels(self):
     # Draw the Y-labels
     if not self.params.get('hideYAxis'):
@@ -1757,7 +1755,6 @@ class LineGraph(Graph):
     self.ctx.stroke()
 
 
-
 class PieGraph(Graph):
   customizable = Graph.customizable + \
                  ('title','valueLabels','valueLabelsMin','hideLegend','pieLabels','areaAlpha','valueLabelsColor')
@@ -1850,7 +1847,7 @@ class PieGraph(Graph):
         if slice['value'] < 10 and slice['value'] != int(slice['value']):
           label = "%.2f" % slice['value']
         else:
-          label = unicode(int(slice['value']))
+          label = six.text_type(int(slice['value']))
       theta = slice['midAngle']
       x = self.x0 + (self.radius / 2.0 * math.cos(theta))
       y = self.y0 + (self.radius / 2.0 * math.sin(theta))

@@ -58,7 +58,7 @@ else:
 
 storage_dirs = []
 
-for subdir in ('whisper', 'ceres', 'rrd', 'log', 'log/webapp'):
+for subdir in ('whisper/dummy.txt', 'ceres/dummy.txt', 'rrd/dummy.txt', 'log/dummy.txt', 'log/webapp/dummy.txt'):
   storage_dirs.append( ('storage/%s' % subdir, []) )
 
 webapp_content = defaultdict(list)
@@ -71,6 +71,10 @@ for root, dirs, files in os.walk('webapp/content'):
 conf_files = [ ('conf', glob('conf/*.example')) ]
 examples = [ ('examples', glob('examples/example-*')) ]
 
+def read(fname):
+    with open(os.path.join(os.path.dirname(__file__), fname)) as f:
+        return f.read()
+
 try:
     setup(
       name='graphite-web',
@@ -80,6 +84,8 @@ try:
       author_email='chrismd@gmail.com',
       license='Apache Software License 2.0',
       description='Enterprise scalable realtime graphing',
+      long_description=read('README.md'),
+      long_description_content_type='text/markdown',
       package_dir={'' : 'webapp'},
       packages=[
         'graphite',
@@ -121,6 +127,9 @@ try:
           'Programming Language :: Python :: 3.4',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: Implementation :: CPython',
+          'Programming Language :: Python :: Implementation :: PyPy',
           ],
       **setup_kwargs
     )

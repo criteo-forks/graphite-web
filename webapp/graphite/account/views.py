@@ -19,7 +19,7 @@ except ImportError:  # Django < 1.10
     from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
-from graphite.user_util import getProfile
+from graphite.user_util import getProfile, isAuthenticated
 
 
 def loginView(request):
@@ -41,16 +41,19 @@ def loginView(request):
   else:
     return render_to_response("login.html",{'nextPage' : nextPage})
 
+
 def logoutView(request):
   nextPage = request.GET.get('nextPage', reverse('browser'))
   logout(request)
   return HttpResponseRedirect(nextPage)
 
+
 def editProfile(request):
-  if not request.user.is_authenticated():
+  if not isAuthenticated(request.user):
     return HttpResponseRedirect(reverse('browser'))
   context = { 'profile' : getProfile(request) }
   return render_to_response("editProfile.html",context)
+
 
 def updateProfile(request):
   profile = getProfile(request,allowDefault=False)

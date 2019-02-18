@@ -1,10 +1,13 @@
 from graphite.util import jsonResponse, HttpResponse, HttpError
 from graphite.storage import STORE, extractForwardHeaders
 
-def _requestContext(request):
+
+def _requestContext(request, queryParams):
   return {
     'forwardHeaders': extractForwardHeaders(request),
+    'localOnly': queryParams.get('local') == '1',
   }
+
 
 @jsonResponse
 def tagSeries(request, queryParams):
@@ -15,7 +18,8 @@ def tagSeries(request, queryParams):
   if not path:
     raise HttpError('no path specified', status=400)
 
-  return STORE.tagdb.tag_series(path, requestContext=_requestContext(request))
+  return STORE.tagdb.tag_series(path, requestContext=_requestContext(request, queryParams))
+
 
 @jsonResponse
 def tagMultiSeries(request, queryParams):
@@ -32,7 +36,8 @@ def tagMultiSeries(request, queryParams):
   else:
     raise HttpError('no paths specified',status=400)
 
-  return STORE.tagdb.tag_multi_series(paths, requestContext=_requestContext(request))
+  return STORE.tagdb.tag_multi_series(paths, requestContext=_requestContext(request, queryParams))
+
 
 @jsonResponse
 def delSeries(request, queryParams):
@@ -49,7 +54,8 @@ def delSeries(request, queryParams):
   else:
     raise HttpError('no path specified', status=400)
 
-  return STORE.tagdb.del_multi_series(paths, requestContext=_requestContext(request))
+  return STORE.tagdb.del_multi_series(paths, requestContext=_requestContext(request, queryParams))
+
 
 @jsonResponse
 def findSeries(request, queryParams):
@@ -67,7 +73,8 @@ def findSeries(request, queryParams):
   if not exprs:
     raise HttpError('no tag expressions specified', status=400)
 
-  return STORE.tagdb.find_series(exprs, requestContext=_requestContext(request))
+  return STORE.tagdb.find_series(exprs, requestContext=_requestContext(request, queryParams))
+
 
 @jsonResponse
 def tagList(request, queryParams):
@@ -77,8 +84,9 @@ def tagList(request, queryParams):
   return STORE.tagdb.list_tags(
     tagFilter=request.GET.get('filter'),
     limit=request.GET.get('limit'),
-    requestContext=_requestContext(request),
+    requestContext=_requestContext(request, queryParams),
   )
+
 
 @jsonResponse
 def tagDetails(request, queryParams, tag):
@@ -89,8 +97,9 @@ def tagDetails(request, queryParams, tag):
     tag,
     valueFilter=queryParams.get('filter'),
     limit=queryParams.get('limit'),
-    requestContext=_requestContext(request),
+    requestContext=_requestContext(request, queryParams),
   )
+
 
 @jsonResponse
 def autoCompleteTags(request, queryParams):
@@ -109,8 +118,9 @@ def autoCompleteTags(request, queryParams):
     exprs,
     tagPrefix=queryParams.get('tagPrefix'),
     limit=queryParams.get('limit'),
-    requestContext=_requestContext(request)
+    requestContext=_requestContext(request, queryParams)
   )
+
 
 @jsonResponse
 def autoCompleteValues(request, queryParams):
@@ -134,5 +144,5 @@ def autoCompleteValues(request, queryParams):
     tag,
     valuePrefix=queryParams.get('valuePrefix'),
     limit=queryParams.get('limit'),
-    requestContext=_requestContext(request)
+    requestContext=_requestContext(request, queryParams)
   )
