@@ -131,7 +131,7 @@ def find_view(request):
     ))
   except Exception:
     log.exception()
-    return serverErrorPage(sys.exc_info())
+    return serverError(sys.exc_info())
 
   log.info('find_view query=%s local_only=%s matches=%d' % (query, local_only, len(matches)))
   matches.sort(key=lambda node: node.name)
@@ -388,6 +388,7 @@ def json_response_for(request, data, content_type='application/json', jsonp=Fals
     content_type += ';charset=utf-8'
 
   return HttpResponse(content, content_type=content_type, **kwargs)
+
 
 def serverError(exception_info):
   return HttpResponseServerError("{}: {}".format(exception_info[0].__name__, exception_info[1]))
