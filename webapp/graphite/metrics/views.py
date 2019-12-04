@@ -12,6 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License."""
 
+import sys
 from functools import reduce
 import pytz
 from six import text_type
@@ -19,6 +20,7 @@ from six.moves.urllib.parse import unquote_plus
 
 from datetime import datetime
 from django.conf import settings
+from django.http import HttpResponseServerError
 
 from graphite.carbonlink import CarbonLink
 from graphite.compat import HttpResponse, HttpResponseBadRequest
@@ -129,7 +131,7 @@ def find_view(request):
     ))
   except Exception:
     log.exception()
-    raise
+    return serverError(sys.exc_info())
 
   log.info('find_view query=%s local_only=%s matches=%d' % (query, local_only, len(matches)))
   matches.sort(key=lambda node: node.name)
@@ -386,3 +388,7 @@ def json_response_for(request, data, content_type='application/json', jsonp=Fals
     content_type += ';charset=utf-8'
 
   return HttpResponse(content, content_type=content_type, **kwargs)
+
+
+def serverError(exception_info):
+  return HttpResponseServerError("{}: {}".format(exception_info[0].__name__, exception_info[1]))
