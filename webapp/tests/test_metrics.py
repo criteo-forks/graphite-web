@@ -117,10 +117,10 @@ class MetricsTester(TestCase):
             'from': 'now-1h',
             'until': 'now-2h',
         })
-        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.status_code in [400, 500])
         # response contains timestamps such as:
         # Bad Request: Failed to instantiate find query: Invalid interval start=1582801589 end=1582797989
-        self.assertRegex(response.content, b"^Bad Request: Failed to instantiate find query: Invalid interval start=[0-9]+ end=[0-9]+$")
+        self.assertRegex(response.content, b"Failed to instantiate find query: Invalid interval start=[0-9]+ end=[0-9]+$")
 
         #
         # Wrong type for param 'wildcards'
